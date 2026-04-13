@@ -1,0 +1,7 @@
+langchain>=0.3.0
+langchain-ollama>=0.2.0
+onnxruntime>=1.20.0
+ultralytics>=8.3.0
+pydantic>=2.9.0
+PyYAML>=6.0.2
+Pillow>=10.4.0

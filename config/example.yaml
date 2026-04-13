@@ -1,0 +1,43 @@
+﻿dataset:
+  images_dir: "data/images"
+  classes:
+    - name: "cat"
+      description: "家猫、幼猫或清晰可见的猫科宠物个体。"
+    - name: "dog"
+      description: "家犬、幼犬或清晰可见的犬类宠物个体。"
+  image_extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+  output_dir: "outputs"
+
+yolo:
+  enabled: true
+  model_path: "weights/best.onnx"
+  conf_threshold: 0.25
+  iou_threshold: 0.5
+  device: null
+
+ollama:
+  base_url: "http://localhost:11434"
+  annotator_model: "your-qwen-vision-model"
+  reviewer_model: "your-gemma-vision-model"
+  temperature: 0.1
+  annotator_few_shots:
+    - image_path: "data/fewshot/example_01.jpg"
+      label_path: "data/fewshot/example_01.txt"
+    - image_path: "data/fewshot/example_02.jpg"
+      label_path: "data/fewshot/example_02.txt"
+
+pipeline:
+  max_images: null
+  save_intermediate_json: true
+
+finetune:
+  dataset:
+    images_dir: "data/train/images"
+    labels_dir: "data/train/labels"
+  generic_output: "outputs/sft_generic.jsonl"
+  llamafactory_output: "outputs/sft_llamafactory.json"
+  task_prompt: "请识别图中所有目标，并返回 JSON：{\"objects\": [{\"label\": \"类别名\", \"bbox\": [x_center, y_center, width, height]}], \"summary\": \"一句话总结\"}。坐标必须归一化到 0 到 1。"
+  use_reviewed_annotations: false
