@@ -32,26 +32,26 @@ class AutoLabelPipeline:
             yolo_result = (
                 self.yolo_annotator.annotate(record)
                 if self.yolo_annotator
-                else AnnotationResult(image_path=record.image_path, boxes=[], source="yolo")
+                else AnnotationResult(boxes=[], summary="")
             )
             vlm_result = self.vlm_agent.annotate(record)
             review_result = self.review_agent.review(record, yolo_result, vlm_result)
             final_result = AnnotationResult(
-                image_path=record.image_path,
                 boxes=review_result.final_boxes,
-                source="reviewer",
                 summary=review_result.summary,
                 issues=review_result.suspicious_labels,
             )
 
             save_yolo_annotation(
-                yolo_result,
+                image_path=record.image_path,
+                result=yolo_result,
                 labels_dir=self.yolo_label_dir,
                 images_dir=self.config.dataset.images_dir,
                 class_names=self.class_names,
             )
             save_yolo_annotation(
-                final_result,
+                image_path=record.image_path,
+                result=final_result,
                 labels_dir=self.final_label_dir,
                 images_dir=self.config.dataset.images_dir,
                 class_names=self.class_names,

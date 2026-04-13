@@ -5,7 +5,7 @@ from pathlib import Path
 from PIL import Image
 
 from .config import DatasetConfig, FineTuneDatasetConfig, ObjectClassConfig
-from .schemas import AnnotationResult, BoundingBox, ImageRecord, LlmAnnotationPayload, LlmBox
+from .schemas import AnnotationResult, BoundingBox, ImageRecord, LlmAnnotationResult, LlmBox
 
 
 def load_classes(config: DatasetConfig) -> list[ObjectClassConfig]:
@@ -42,13 +42,11 @@ def resolve_label_path(image_path: Path, images_dir: Path, labels_dir: Path) -> 
 
 
 def load_yolo_annotation(
-    image_path: Path,
     label_path: Path,
     class_names: list[str],
-    source: str,
 ) -> AnnotationResult:
     if not label_path.exists():
-        return AnnotationResult(image_path=image_path, boxes=[], source=source, summary="")
+        return AnnotationResult(boxes=[], summary="")
 
     boxes: list[BoundingBox] = []
     lines = label_path.read_text(encoding="utf-8").splitlines()
@@ -68,32 +66,61 @@ def load_yolo_annotation(
                 width=width,
                 height=height,
                 confidence=confidence,
-                source=source,
             )
         )
 
     return AnnotationResult(
-        image_path=image_path,
         boxes=boxes,
-        source=source,
         summary=f"{len(boxes)} objects loaded from {label_path.name}.",
     )
 
 
-def annotation_result_to_llm_payload(result: AnnotationResult) -> LlmAnnotationPayload:
-    return LlmAnnotationPayload(
+def annotation_result_to_llm_result(result: AnnotationResult) -> LlmAnnotationResult:
+    return LlmAnnotationResult(
         objects=[
             LlmBox(
                 label=box.label,
-                bbox=box.as_list(),
-                confidence=box.confidence,
-                rationale=box.rationale,
+                x_center=box.x_center,
+                y_center=box.y_center,
+                width=box.width,
+                height=box.height,
             )
             for box in result.boxes
         ],
         summary=result.summary or build_annotation_summary(result.boxes),
         issues=result.issues,
     )
+
+
+def validate_llm_annotation_result(
+    result: LlmAnnotationResult,
+    class_names: list[str],
+) -> LlmAnnotationResult:
+    allowed_labels = set(class_names)
+    invalid_labels = sorted({item.label for item in result.objects if item.label not in allowed_labels})
+    if invalid_labels:
+        raise ValueError(
+            f"Model returned unsupported labels {invalid_labels}. Allowed labels: {class_names}"
+        )
+    return result
+
+
+def llm_boxes_to_bounding_boxes(items: list[LlmBox], class_names: list[str]) -> list[BoundingBox]:
+    allowed_labels = set(class_names)
+    boxes: list[BoundingBox] = []
+    for item in items:
+        if item.label not in allowed_labels:
+            raise ValueError(f"Model returned unsupported label {item.label!r}. Allowed labels: {class_names}")
+        boxes.append(
+            BoundingBox(
+                label=item.label,
+                x_center=item.x_center,
+                y_center=item.y_center,
+                width=item.width,
+                height=item.height,
+            )
+        )
+    return boxes
 
 
 def build_annotation_summary(boxes: list[BoundingBox]) -> str:
@@ -109,13 +136,14 @@ def build_annotation_summary(boxes: list[BoundingBox]) -> str:
 
 
 def save_yolo_annotation(
+    image_path: Path,
     result: AnnotationResult,
     labels_dir: Path,
     images_dir: Path,
     class_names: list[str],
 ) -> Path:
     class_to_idx = {name: idx for idx, name in enumerate(class_names)}
-    relative = result.image_path.relative_to(images_dir).with_suffix(".txt")
+    relative = image_path.relative_to(images_dir).with_suffix(".txt")
     output_path = labels_dir / relative
     output_path.parent.mkdir(parents=True, exist_ok=True)
     lines = [box.to_yolo_line(class_to_idx) for box in result.boxes]

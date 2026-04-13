@@ -3,14 +3,16 @@ from __future__ import annotations
 from langchain_ollama import ChatOllama
 
 from .config import ObjectClassConfig, OllamaConfig
+from .dataset import llm_boxes_to_bounding_boxes
 from .prompts import build_review_system_prompt, build_review_user_prompt
-from .schemas import AnnotationResult, BoundingBox, ImageRecord, ReviewPayload, ReviewResult
+from .schemas import AnnotationResult, ImageRecord, LlmAnnotationResult, ReviewPayload, ReviewResult
 from .utils import image_to_data_url
 
 
 class ReviewAgent:
     def __init__(self, config: OllamaConfig, classes: list[ObjectClassConfig]):
         self.classes = classes
+        self.class_names = [item.name for item in classes]
         self.model = ChatOllama(
             model=config.reviewer_model,
             base_url=config.base_url,
@@ -21,7 +23,7 @@ class ReviewAgent:
         self,
         record: ImageRecord,
         yolo_result: AnnotationResult,
-        vlm_result: AnnotationResult,
+        vlm_result: LlmAnnotationResult,
     ) -> ReviewResult:
         messages = [
             ("system", build_review_system_prompt()),
@@ -38,20 +40,7 @@ class ReviewAgent:
         ]
         payload = self.model.invoke(messages)
         return ReviewResult(
-            image_path=record.image_path,
-            final_boxes=[
-                BoundingBox(
-                    label=item.label,
-                    x_center=item.bbox[0],
-                    y_center=item.bbox[1],
-                    width=item.bbox[2],
-                    height=item.bbox[3],
-                    confidence=item.confidence,
-                    rationale=item.rationale,
-                    source="reviewer",
-                )
-                for item in payload.final_objects
-            ],
+            final_boxes=llm_boxes_to_bounding_boxes(payload.final_objects, self.class_names),
             summary=payload.summary,
             missing_from_yolo=payload.missing_from_yolo,
             missing_from_vlm=payload.missing_from_vlm,

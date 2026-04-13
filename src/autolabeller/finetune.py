@@ -17,8 +17,7 @@ def export_sft_datasets(config: AppConfig) -> dict[str, int]:
 
     if config.finetune.use_reviewed_annotations:
         reviewed_json_paths = sorted((config.dataset.output_dir / "json").rglob("*.json"))
-        annotations = [_load_reviewed_annotation(path) for path in reviewed_json_paths]
-        examples = [(annotation.image_path, annotation) for annotation in annotations]
+        examples = [_load_reviewed_annotation(path) for path in reviewed_json_paths]
     else:
         if config.finetune.dataset is None:
             raise ValueError("finetune.dataset must be configured when use_reviewed_annotations is false.")
@@ -27,10 +26,8 @@ def export_sft_datasets(config: AppConfig) -> dict[str, int]:
             (
                 image_path,
                 load_yolo_annotation(
-                    image_path=image_path,
                     label_path=label_path,
                     class_names=class_names,
-                    source="ground_truth",
                 ),
             )
             for image_path, label_path in pairs
@@ -41,7 +38,10 @@ def export_sft_datasets(config: AppConfig) -> dict[str, int]:
             "objects": [
                 {
                     "label": box.label,
-                    "bbox": box.as_list(),
+                    "x_center": box.x_center,
+                    "y_center": box.y_center,
+                    "width": box.width,
+                    "height": box.height,
                 }
                 for box in annotation.boxes
             ],
@@ -80,16 +80,17 @@ def export_sft_datasets(config: AppConfig) -> dict[str, int]:
     }
 
 
-def _load_reviewed_annotation(reviewed_json_path: Path) -> AnnotationResult:
+def _load_reviewed_annotation(reviewed_json_path: Path) -> tuple[Path, AnnotationResult]:
     payload = json.loads(reviewed_json_path.read_text(encoding="utf-8"))
     image_path = Path(payload["image_path"])
     final_payload = payload.get("final", {})
-    return AnnotationResult(
-        image_path=image_path,
-        boxes=[_box_from_dict(item) for item in final_payload.get("boxes", [])],
-        source="reviewer",
-        summary=final_payload.get("summary", ""),
-        issues=final_payload.get("issues", []),
+    return (
+        image_path,
+        AnnotationResult(
+            boxes=[_box_from_dict(item) for item in final_payload.get("boxes", [])],
+            summary=final_payload.get("summary", ""),
+            issues=final_payload.get("issues", []),
+        ),
     )
 
 
@@ -101,6 +102,4 @@ def _box_from_dict(payload: dict) -> BoundingBox:
         width=payload["width"],
         height=payload["height"],
         confidence=payload.get("confidence"),
-        rationale=payload.get("rationale"),
-        source=payload.get("source", "reviewer"),
     )

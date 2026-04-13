@@ -37,13 +37,10 @@ class YoloPreAnnotator:
                         width=float(coords[2]),
                         height=float(coords[3]),
                         confidence=float(conf),
-                        source="yolo",
                     )
                 )
 
         return AnnotationResult(
-            image_path=record.image_path,
             boxes=boxes,
-            source="yolo",
             summary=f"YOLO ONNX proposed {len(boxes)} objects.",
         )

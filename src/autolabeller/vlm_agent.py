@@ -5,13 +5,13 @@ import json
 from langchain_ollama import ChatOllama
 
 from .config import ObjectClassConfig, OllamaConfig
-from .dataset import annotation_result_to_llm_payload, load_yolo_annotation
+from .dataset import annotation_result_to_llm_result, load_yolo_annotation, validate_llm_annotation_result
 from .prompts import (
     build_annotation_example_user_prompt,
     build_annotation_system_prompt,
     build_annotation_user_prompt,
 )
-from .schemas import AnnotationResult, BoundingBox, ImageRecord, LlmAnnotationPayload
+from .schemas import ImageRecord, LlmAnnotationResult
 from .utils import image_to_data_url
 
 
@@ -24,10 +24,12 @@ class MultimodalAnnotatorAgent:
             model=config.annotator_model,
             base_url=config.base_url,
             temperature=config.temperature,
-        ).with_structured_output(LlmAnnotationPayload)
+        ).with_structured_output(LlmAnnotationResult)
 
-    def annotate(self, record: ImageRecord) -> AnnotationResult:
-        messages: list[tuple[str, str | list[dict[str, str]]]] = [("system", build_annotation_system_prompt())]
+    def annotate(self, record: ImageRecord) -> LlmAnnotationResult:
+        messages: list[tuple[str, str | list[dict[str, str]]]] = [
+            ("system", build_annotation_system_prompt())
+        ]
         messages.extend(self._build_few_shot_messages())
         messages.append(
             (
@@ -44,26 +46,8 @@ class MultimodalAnnotatorAgent:
                 ],
             )
         )
-        payload = self.model.invoke(messages)
-        return AnnotationResult(
-            image_path=record.image_path,
-            boxes=[
-                BoundingBox(
-                    label=item.label,
-                    x_center=item.bbox[0],
-                    y_center=item.bbox[1],
-                    width=item.bbox[2],
-                    height=item.bbox[3],
-                    confidence=item.confidence,
-                    rationale=item.rationale,
-                    source="vlm",
-                )
-                for item in payload.objects
-            ],
-            source="vlm",
-            summary=payload.summary,
-            issues=payload.issues,
-        )
+        result = self.model.invoke(messages)
+        return validate_llm_annotation_result(result, self.class_names)
 
     def _build_few_shot_messages(self) -> list[tuple[str, str | list[dict[str, str]]]]:
         messages: list[tuple[str, str | list[dict[str, str]]]] = []
@@ -73,12 +57,10 @@ class MultimodalAnnotatorAgent:
             if not example.label_path.exists():
                 raise FileNotFoundError(f"Few-shot label not found: {example.label_path}")
             annotation = load_yolo_annotation(
-                image_path=example.image_path,
                 label_path=example.label_path,
                 class_names=self.class_names,
-                source="ground_truth",
             )
-            payload = annotation_result_to_llm_payload(annotation)
+            payload = annotation_result_to_llm_result(annotation)
             messages.append(
                 (
                     "user",

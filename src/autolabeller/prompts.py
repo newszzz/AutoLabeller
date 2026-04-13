@@ -4,7 +4,7 @@ import json
 
 from .config import ObjectClassConfig
 from .dataset import build_class_catalog_text
-from .schemas import AnnotationResult
+from .schemas import AnnotationResult, LlmAnnotationResult
 
 
 def build_annotation_system_prompt() -> str:
@@ -25,7 +25,7 @@ Class definitions:
 
 Requirements:
 1. Labels must exactly match the configured class names.
-2. Bounding boxes use normalized YOLO format [x_center, y_center, width, height].
+2. Bounding boxes use normalized YOLO coordinates with fields x_center, y_center, width, height.
 3. Output contains all valid objects and no duplicates.
 4. The assistant response for this example is the correct gold annotation.
 """.strip()
@@ -50,13 +50,12 @@ Class definitions:
 Output requirements:
 1. Return only data that fits the required structured schema.
 2. All coordinates must be normalized to the range [0, 1].
-3. bbox uses [x_center, y_center, width, height].
+3. Use fields x_center, y_center, width, height for each object.
 4. label must exactly match one configured class name.
 5. Do not annotate the same object multiple times.
 6. If an object is ambiguous, occluded, or very small, mention that in issues.
 7. If no configured objects are present, return an empty objects list and explain that in summary.
 """.strip()
-
 
 
 def build_review_system_prompt() -> str:
@@ -67,15 +66,14 @@ def build_review_system_prompt() -> str:
     )
 
 
-
 def build_review_user_prompt(
     classes: list[ObjectClassConfig],
     yolo_result: AnnotationResult,
-    vlm_result: AnnotationResult,
+    vlm_result: LlmAnnotationResult,
 ) -> str:
     class_catalog = build_class_catalog_text(classes)
     yolo_json = json.dumps(_annotation_to_prompt_payload(yolo_result), ensure_ascii=False, indent=2)
-    vlm_json = json.dumps(_annotation_to_prompt_payload(vlm_result), ensure_ascii=False, indent=2)
+    vlm_json = json.dumps(vlm_result.model_dump(), ensure_ascii=False, indent=2)
     return f"""
 Review task:
 Use the image, the YOLO proposal, and the multimodal result to produce the final annotation.
@@ -95,23 +93,23 @@ Output requirements:
 3. Keep only the final correct annotations in final_objects.
 4. Describe likely misses in missing_from_yolo and missing_from_vlm.
 5. Record uncertain or suspicious cases in suspicious_labels.
-6. bbox uses [x_center, y_center, width, height], all values in [0, 1].
+6. Use fields x_center, y_center, width, height, all values in [0, 1].
 7. label must exactly match one configured class name.
 """.strip()
 
 
-
 def _annotation_to_prompt_payload(result: AnnotationResult) -> dict:
     return {
-        "source": result.source,
         "summary": result.summary,
         "issues": result.issues,
         "objects": [
             {
                 "label": box.label,
-                "bbox": box.as_list(),
+                "x_center": box.x_center,
+                "y_center": box.y_center,
+                "width": box.width,
+                "height": box.height,
                 "confidence": box.confidence,
-                "rationale": box.rationale,
             }
             for box in result.boxes
         ],
