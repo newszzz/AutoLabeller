@@ -19,5 +19,4 @@ python main.py export-sft --config config/example.yaml
 
 - `dataset.classes` 使用 `name + description` 定义类别。
 - `yolo.model_path` 必须是 `.onnx` 文件。
-- 自动标注流程只依赖图片，不再读取 ground-truth 标签，也不做 evaluate。
 - `finetune.dataset` 仅在导出已有标注数据集时使用。
