@@ -18,11 +18,13 @@ yolo:
   iou_threshold: 0.5
   device: null
 
-ollama:
-  base_url: "http://localhost:11434"
-  annotator_model: "your-qwen-vision-model"
-  reviewer_model: "your-gemma-vision-model"
+llama_factory:
+  base_url: "http://localhost:8000/v1"
+  api_key: "0"
+  annotator_model: "Qwen/Qwen2.5-VL-7B-Instruct"
+  reviewer_model: "Qwen/Qwen2.5-VL-7B-Instruct"
   temperature: 0.1
+  request_timeout: 120
   annotator_few_shots:
     - image_path: "data/fewshot/example_01.jpg"
       label_path: "data/fewshot/example_01.txt"
@@ -32,12 +34,3 @@ ollama:
 pipeline:
   max_images: null
   save_intermediate_json: true
-
-finetune:
-  dataset:
-    images_dir: "data/train/images"
-    labels_dir: "data/train/labels"
-  generic_output: "outputs/sft_generic.jsonl"
-  llamafactory_output: "outputs/sft_llamafactory.json"
-  task_prompt: "请识别图中所有目标，并返回 JSON：{\"objects\": [{\"label\": \"类别名\", \"bbox\": [x_center, y_center, width, height]}], \"summary\": \"一句话总结\"}。坐标必须归一化到 0 到 1。"
-  use_reviewed_annotations: false

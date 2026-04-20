@@ -1,23 +1,21 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
-from langchain_ollama import ChatOllama
+from langchain_core.messages import HumanMessage, SystemMessage
 
-from .config import ObjectClassConfig, OllamaConfig
+from .config import LlamaFactoryConfig, ObjectClassConfig
 from .dataset import llm_boxes_to_bounding_boxes
+from .llama_factory_client import LlamaFactoryChatClient
 from .prompts import build_review_system_prompt, build_review_user_prompt
 from .schemas import AnnotationResult, ImageRecord, LlmAnnotationResult, ReviewPayload, ReviewResult
 from .utils import image_to_data_url
 
 
-class ReviewAgent:
-    def __init__(self, config: OllamaConfig, classes: list[ObjectClassConfig]):
+class ReviewerAgent:
+    def __init__(self, config: LlamaFactoryConfig, classes: list[ObjectClassConfig]):
         self.classes = classes
         self.class_names = [item.name for item in classes]
-        self.model = ChatOllama(
-            model=config.reviewer_model,
-            base_url=config.base_url,
-            temperature=config.temperature,
-        ).with_structured_output(ReviewPayload)
+        self.config = config
+        self.client = LlamaFactoryChatClient(config)
 
     def review(
         self,
@@ -26,23 +24,27 @@ class ReviewAgent:
         vlm_result: LlmAnnotationResult,
     ) -> ReviewResult:
         messages = [
-            ("system", build_review_system_prompt()),
-            (
-                "user",
-                [
+            SystemMessage(content=build_review_system_prompt()),
+            HumanMessage(
+                content=[
                     {
                         "type": "text",
                         "text": build_review_user_prompt(self.classes, yolo_result, vlm_result),
                     },
-                    {"type": "image_url", "image_url": image_to_data_url(record.image_path)},
-                ],
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": image_to_data_url(record.image_path)},
+                    },
+                ]
             ),
         ]
-        payload = self.model.invoke(messages)
+        payload = self.client.invoke_structured(
+            model_name=self.config.reviewer_model,
+            messages=messages,
+            response_model=ReviewPayload,
+        )
         return ReviewResult(
             final_boxes=llm_boxes_to_bounding_boxes(payload.final_objects, self.class_names),
-            summary=payload.summary,
-            missing_from_yolo=payload.missing_from_yolo,
-            missing_from_vlm=payload.missing_from_vlm,
-            suspicious_labels=payload.suspicious_labels,
+            has_issues=payload.has_issues,
+            issue_summary=payload.issue_summary,
         )

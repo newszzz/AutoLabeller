@@ -64,18 +64,13 @@ class ReviewResult(BaseModel):
         default_factory=list,
         description="Final reviewed boxes after merging YOLO and multimodal results.",
     )
-    summary: str = Field(default="", description="Short summary of the final reviewed result.")
-    missing_from_yolo: list[str] = Field(
-        default_factory=list,
-        description="Objects that appear missing from the YOLO proposal.",
+    has_issues: bool = Field(
+        default=False,
+        description="Whether the reviewer found missing boxes, extra boxes, or other problems in the candidate inputs.",
     )
-    missing_from_vlm: list[str] = Field(
-        default_factory=list,
-        description="Objects that appear missing from the multimodal model proposal.",
-    )
-    suspicious_labels: list[str] = Field(
-        default_factory=list,
-        description="Potential wrong labels, false positives, or uncertain cases.",
+    issue_summary: str = Field(
+        default="",
+        description="Short summary of the review result and any issues found in the candidate inputs.",
     )
 
 
@@ -139,19 +134,11 @@ class ReviewPayload(BaseModel):
         default_factory=list,
         description="Final reviewed object list after comparing YOLO and VLM outputs with the image.",
     )
-    summary: str = Field(
+    has_issues: bool = Field(
+        default=False,
+        description="Whether the reviewer found missing boxes, extra boxes, or other problems in the candidate inputs.",
+    )
+    issue_summary: str = Field(
         default="",
-        description="Short summary of the review result and important corrections.",
-    )
-    missing_from_yolo: list[str] = Field(
-        default_factory=list,
-        description="Short descriptions of objects YOLO appears to have missed.",
-    )
-    missing_from_vlm: list[str] = Field(
-        default_factory=list,
-        description="Short descriptions of objects the multimodal agent appears to have missed.",
-    )
-    suspicious_labels: list[str] = Field(
-        default_factory=list,
-        description="Potential false positives, wrong labels, or uncertain annotations worth attention.",
+        description="Short summary describing detected issues, or stating that no obvious issues were found.",
     )

@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 
 from .config import load_config
-from .finetune import export_sft_datasets
 from .pipeline import AutoLabelPipeline
 
 
@@ -13,9 +12,6 @@ def build_parser() -> argparse.ArgumentParser:
 
     annotate_parser = subparsers.add_parser("annotate", help="Run annotation pipeline")
     annotate_parser.add_argument("--config", required=True, help="Path to YAML config")
-
-    export_parser = subparsers.add_parser("export-sft", help="Export SFT training data")
-    export_parser.add_argument("--config", required=True, help="Path to YAML config")
     return parser
 
 
@@ -26,11 +22,6 @@ def main() -> None:
 
     if args.command == "annotate":
         summary = AutoLabelPipeline(config).run()
-        print(summary)
-        return
-
-    if args.command == "export-sft":
-        summary = export_sft_datasets(config)
         print(summary)
         return
 

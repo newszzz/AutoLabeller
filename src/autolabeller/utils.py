@@ -33,6 +33,36 @@ def write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def extract_json_object(text: str) -> dict[str, Any]:
+    candidate = text.strip()
+    if candidate.startswith("```"):
+        parts = candidate.split("```")
+        if len(parts) >= 3:
+            candidate = parts[1]
+            if "\n" in candidate:
+                candidate = candidate.split("\n", 1)[1]
+        candidate = candidate.strip()
+
+    try:
+        payload = json.loads(candidate)
+    except json.JSONDecodeError:
+        decoder = json.JSONDecoder()
+        for index, char in enumerate(candidate):
+            if char != "{":
+                continue
+            try:
+                payload, _ = decoder.raw_decode(candidate[index:])
+            except json.JSONDecodeError:
+                continue
+            if isinstance(payload, dict):
+                return payload
+        raise ValueError("Model response did not contain a valid JSON object.") from None
+
+    if not isinstance(payload, dict):
+        raise ValueError("Model response must be a JSON object.")
+    return payload
+
+
 def _json_default(value: Any) -> Any:
     if isinstance(value, Path):
         return str(value)

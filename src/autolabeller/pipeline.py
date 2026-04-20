@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 from .config import AppConfig
-from .dataset import collect_image_records, load_class_names, load_classes, save_yolo_annotation
-from .reviewer_agent import ReviewAgent
+from .dataset import (
+    build_annotation_summary,
+    collect_image_records,
+    load_class_names,
+    load_classes,
+    save_yolo_annotation,
+)
+from .reviewer_agent import ReviewerAgent
 from .schemas import AnnotationResult
 from .utils import ensure_dir, write_json
 from .vlm_agent import MultimodalAnnotatorAgent
@@ -19,8 +25,8 @@ class AutoLabelPipeline:
         self.json_dir = ensure_dir(self.output_dir / "json")
         self.yolo_label_dir = ensure_dir(self.output_dir / "yolo_labels")
         self.final_label_dir = ensure_dir(self.output_dir / "final_labels")
-        self.vlm_agent = MultimodalAnnotatorAgent(config.ollama, self.classes)
-        self.review_agent = ReviewAgent(config.ollama, self.classes)
+        self.vlm_agent = MultimodalAnnotatorAgent(config.llama_factory, self.classes)
+        self.review_agent = ReviewerAgent(config.llama_factory, self.classes)
         self.yolo_annotator = (
             YoloPreAnnotator(config.yolo, self.classes) if config.yolo.enabled else None
         )
@@ -38,8 +44,8 @@ class AutoLabelPipeline:
             review_result = self.review_agent.review(record, yolo_result, vlm_result)
             final_result = AnnotationResult(
                 boxes=review_result.final_boxes,
-                summary=review_result.summary,
-                issues=review_result.suspicious_labels,
+                summary=build_annotation_summary(review_result.final_boxes),
+                issues=[review_result.issue_summary] if review_result.has_issues and review_result.issue_summary else [],
             )
 
             save_yolo_annotation(

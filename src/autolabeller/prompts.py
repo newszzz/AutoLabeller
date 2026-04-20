@@ -10,7 +10,8 @@ from .schemas import AnnotationResult, LlmAnnotationResult
 def build_annotation_system_prompt() -> str:
     return (
         "You are an image annotation assistant. Understand the image and produce structured"
-        " object annotations that follow the required schema. Do not output chain-of-thought."
+        " object annotations that follow the required schema. Return exactly one JSON object."
+        " Do not output markdown or chain-of-thought."
     )
 
 
@@ -48,7 +49,7 @@ Class definitions:
 {few_shot_hint}
 
 Output requirements:
-1. Return only data that fits the required structured schema.
+1. Return exactly one JSON object that fits the required structured schema.
 2. All coordinates must be normalized to the range [0, 1].
 3. Use fields x_center, y_center, width, height for each object.
 4. label must exactly match one configured class name.
@@ -61,8 +62,9 @@ Output requirements:
 def build_review_system_prompt() -> str:
     return (
         "You are an image annotation reviewer. Compare the image itself, the YOLO proposal,"
-        " and the multimodal annotation result, then produce the final structured annotation."
-        " Do not output chain-of-thought."
+        " and the multimodal annotation result, then produce the final structured annotation"
+        " together with a compact issue diagnosis."
+        " Return exactly one JSON object and do not output markdown or chain-of-thought."
     )
 
 
@@ -91,8 +93,8 @@ Output requirements:
 1. Validate the image itself instead of blindly trusting either source.
 2. Remove duplicates, obvious mistakes, and undefined labels.
 3. Keep only the final correct annotations in final_objects.
-4. Describe likely misses in missing_from_yolo and missing_from_vlm.
-5. Record uncertain or suspicious cases in suspicious_labels.
+4. Set has_issues to true if either candidate input contains missing boxes, extra boxes, wrong labels, or other notable problems.
+5. Fill issue_summary with one short explanation of the main problem, or say that no obvious issues were found.
 6. Use fields x_center, y_center, width, height, all values in [0, 1].
 7. label must exactly match one configured class name.
 """.strip()

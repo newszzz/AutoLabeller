@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from .config import DatasetConfig, FineTuneDatasetConfig, ObjectClassConfig
+from .config import DatasetConfig, ObjectClassConfig
 from .schemas import AnnotationResult, BoundingBox, ImageRecord, LlmAnnotationResult, LlmBox
 
 
@@ -149,21 +149,3 @@ def save_yolo_annotation(
     lines = [box.to_yolo_line(class_to_idx) for box in result.boxes]
     output_path.write_text("\n".join(lines), encoding="utf-8")
     return output_path
-
-
-def iter_finetune_pairs(
-    dataset: FineTuneDatasetConfig,
-    image_extensions: list[str],
-) -> list[tuple[Path, Path]]:
-    exts = {ext.lower() for ext in image_extensions}
-    image_paths = sorted(
-        path
-        for path in dataset.images_dir.rglob("*")
-        if path.is_file() and path.suffix.lower() in exts
-    )
-    pairs: list[tuple[Path, Path]] = []
-    for image_path in image_paths:
-        label_path = resolve_label_path(image_path, dataset.images_dir, dataset.labels_dir)
-        if label_path.exists():
-            pairs.append((image_path, label_path))
-    return pairs
