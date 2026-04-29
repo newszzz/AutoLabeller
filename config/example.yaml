@@ -1,36 +1,33 @@
-﻿dataset:
-  images_dir: "data/images"
+dataset:
+  images_dir: "../data/gt_dataset/images"
+  output_dir: "../outputs"
   classes:
-    - name: "cat"
-      description: "家猫、幼猫或清晰可见的猫科宠物个体。"
-    - name: "dog"
-      description: "家犬、幼犬或清晰可见的犬类宠物个体。"
+    - id: 0
+      name: "upper body"
+      description: "Upper body of the game characters with yellow outlines in the image"
+    - id: 1
+      name: "head"
+      description: "Head of the game characters with yellow outlines in the image"
   image_extensions:
     - ".jpg"
     - ".jpeg"
     - ".png"
-  output_dir: "outputs"
+  few_shots:
+    - image_path: "../data/fewshot/images/2wanfeng1.jpg"
+      annotation_path: "../data/fewshot/labels/2wanfeng1.txt"
+    - image_path: "../data/fewshot/images/2wanfeng2.jpg"
+      annotation_path: "../data/fewshot/labels/2wanfeng2.txt"
 
 yolo:
-  enabled: true
-  model_path: "weights/best.onnx"
+  model_path: "../val_JZ_v8s320.onnx"
   conf_threshold: 0.25
   iou_threshold: 0.5
   device: null
 
-llama_factory:
+llm_api:
+  backend: "vllm"  # "vllm" or "ollama"; both use an OpenAI-compatible /v1 API.
   base_url: "http://localhost:8000/v1"
   api_key: "0"
-  annotator_model: "Qwen/Qwen2.5-VL-7B-Instruct"
-  reviewer_model: "Qwen/Qwen2.5-VL-7B-Instruct"
-  temperature: 0.1
+  model: "models/Qwen3-VL-8B-Instruct-FP8"
+  temperature: 0.0
   request_timeout: 120
-  annotator_few_shots:
-    - image_path: "data/fewshot/example_01.jpg"
-      label_path: "data/fewshot/example_01.txt"
-    - image_path: "data/fewshot/example_02.jpg"
-      label_path: "data/fewshot/example_02.txt"
-
-pipeline:
-  max_images: null
-  save_intermediate_json: true

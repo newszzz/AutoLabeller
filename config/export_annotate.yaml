@@ -1,0 +1,18 @@
+dataset:
+  images_dir: "../data/gt_dataset/images"
+  labels_dir: "../data/gt_dataset/labels"
+  classes:
+    - id: 0
+      name: "body"
+      description: "Body of the game characters with yellow outlines in the image"
+    - id: 1
+      name: "head"
+      description: "Head of the game characters with yellow outlines in the image"
+  image_extensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+  output_dir: "../data/sft_dataset"
+  max_few_shots: 3
+  synthesize_issues: true
+  negative_sample_ratio: 0.5

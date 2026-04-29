@@ -1,0 +1,21 @@
+data:
+  image: "demo4.jpg"
+  classes:
+    - name: "body"
+      description: "Game characters with yellow outlines in the image"
+    - name: "head"
+      description: "Head of the game characters with yellow outlines in the image"
+  few_shots:
+    - image_path: "data/fewshot/images/2wanfeng1.jpg"
+      label_path: "data/fewshot/labels/2wanfeng1.txt"
+    - image_path: "data/fewshot/images/2wanfeng2.jpg"
+      label_path: "data/fewshot/labels/2wanfeng2.txt"
+    - image_path: "data/fewshot/images/2wanfeng3.jpg"
+      label_path: "data/fewshot/labels/2wanfeng3.txt"
+
+vllm:
+  base_url: "http://localhost:8000/v1"
+  api_key: "0"
+  model: "models/Qwen3-VL-8B-Instruct-FP8"
+  temperature: 0.0
+  request_timeout: 120
